@@ -49,6 +49,7 @@ func main() {
 	signal.Notify(os2main, os.Interrupt)
 
 	log.Println("Process ID: " + strconv.Itoa(os.Getpid()))
+	log.Println("Press Ctrl-C to stop Redox Central")
 	select {
 	case err = <-redox2main:
 		log.Fatalln(err.Error())

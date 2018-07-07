@@ -19,25 +19,51 @@
 package login
 
 import (
+	"encoding/base64"
 	"github.com/SOF3/redox/central/src/config"
 	"github.com/SOF3/redox/central/src/cp/http_util"
 	"github.com/SOF3/redox/central/src/util"
+	"log"
+	"net"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 )
 
 type Middleware struct {
 	sessions *util.ExpiringSyncMap
+
+	bans *util.ExpiringSyncMap
+
+	failures *util.ExpiringSyncMap
 }
 
 func New() *Middleware {
 	return &Middleware{
 		sessions: util.NewExpiringSyncMap(config.Config.ControlPanel.SessionDuration),
+		bans:     util.NewExpiringSyncMap(util.Duration{Duration: time.Hour}),
+		failures: util.NewExpiringSyncMap(util.Duration{Duration: time.Hour}),
 	}
+}
+
+type failures struct {
+	mutex sync.Mutex
+	cnt   int
 }
 
 func (m *Middleware) W(handler http.HandlerFunc) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
+		host, _, err := net.SplitHostPort(req.RemoteAddr)
+		if err != nil {
+			http_util.HandleError(http_util.InternalError(err), res)
+		}
+
+		if _, exists := m.bans.GetExists(host); exists {
+			http_util.HandleError(http_util.UserError(403, "Too many failed logins"), res)
+			return
+		}
+
 		cookieObject, err := req.Cookie("RedoxCPSession")
 		if err != nil && err != http.ErrNoCookie {
 			http_util.HandleError(http_util.InternalError(err), res)
@@ -45,38 +71,67 @@ func (m *Middleware) W(handler http.HandlerFunc) http.HandlerFunc {
 		}
 
 		var cookie string
-		if err == http.ErrNoCookie {
-			headers, exists := req.Header["Authorization"]
-
-			var auth bool
-			if exists && len(headers) > 0 {
-				header := headers[0]
-				if strings.HasPrefix(header, "Basic ") && header[len("Basic "):] == config.Config.ControlPanel.Password {
-					auth = true
-					cookie, err = m.sessions.FillRandom(util.AlphaNum, 32, nil)
-					http.SetCookie(res, &http.Cookie{
-						Name:     "RedoxCPSession",
-						Path:     "/",
-						Value:    cookie,
-						HttpOnly: true,
-						Secure:   config.Config.ControlPanel.SSL != nil,
-						MaxAge:   int(config.Config.ControlPanel.SessionDuration.Seconds()),
-					})
-				}
-			}
-			if !auth {
-				res.Header().Set("WWW-Authenticate", `Basic realm="Control panel password"`)
-				res.WriteHeader(401)
-				res.Write([]byte("Please login"))
+		if err == nil {
+			cookie = cookieObject.Value
+			_, exists := m.sessions.GetExists(cookie)
+			if exists {
+				handler(res, req)
 				return
 			}
 		}
-
-		cookie = cookieObject.Value
-		_, exists := m.sessions.GetExists(cookie)
-
-		if exists {
-			handler(res, req)
+		header := req.Header.Get("Authorization")
+		if !strings.HasPrefix(header, "Basic ") {
+			goto invalidRequest
 		}
+
+		{
+			passwordBytes, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(header, "Basic "))
+			password := string(passwordBytes)
+			index := strings.Index(password, ":")
+			if index == -1 {
+				goto invalidRequest
+			}
+			password = password[index+1:]
+			if err == nil && password == config.Config.ControlPanel.Password {
+				log.Println("[Control Panel] Successful login from " + req.RemoteAddr)
+				cookie, err = m.sessions.FillRandom(util.AlphaNum, 32, nil)
+				sendSessionCookie(res, cookie)
+				handler(res, req)
+				return
+			}
+
+			log.Println("[Control Panel] Bad login from " + req.RemoteAddr + " with wrong password '" + string(password) + "'")
+			fn := m.failures.Get(host)
+			if fn == nil {
+				m.failures.Fill(host, func() interface{} { return new(failures) }, true)
+				fn = m.failures.Get(host)
+			}
+			f := fn.(*failures)
+			f.mutex.Lock()
+			f.cnt++
+			cnt := f.cnt
+			f.mutex.Unlock()
+			if cnt >= 10 {
+				m.bans.Fill(host, func() interface{} { return nil }, true)
+				log.Println("[Control Panel] " + host + " has been banned due to too many failed logins. Restart this process to reset.")
+			}
+		}
+
+	invalidRequest:
+		res.Header().Set("WWW-Authenticate", `Basic realm="Control panel password"`)
+		res.WriteHeader(401)
+		res.Write([]byte("Please login"))
+		return
 	}
+}
+
+func sendSessionCookie(res http.ResponseWriter, cookie string) {
+	http.SetCookie(res, &http.Cookie{
+		Name:     "RedoxCPSession",
+		Path:     "/",
+		Value:    cookie,
+		HttpOnly: true,
+		Secure:   config.Config.ControlPanel.SSL != nil,
+		MaxAge:   int(config.Config.ControlPanel.SessionDuration.Seconds()),
+	})
 }

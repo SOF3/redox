@@ -117,13 +117,21 @@ func (m *ExpiringSyncMap) FillRandom(charset []rune, size int, value interface{}
 
 func (m *ExpiringSyncMap) Get(key string) (value interface{}) {
 	m.mutex.RLock()
-	value = m.values[key]
+	ntr, exists := m.values[key]
 	m.mutex.RUnlock()
-	return
+	if exists && ntr.expiry.After(time.Now()) {
+		return ntr.value
+	} else {
+		return nil
+	}
 }
 func (m *ExpiringSyncMap) GetExists(key string) (value interface{}, exists bool) {
 	m.mutex.RLock()
-	value, exists = m.values[key]
+	ntr, exists := m.values[key]
 	m.mutex.RUnlock()
-	return
+	if exists && ntr.expiry.After(time.Now()) {
+		return ntr.value, true
+	} else {
+		return nil, false
+	}
 }

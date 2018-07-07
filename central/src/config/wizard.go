@@ -24,6 +24,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func runInstallWizard() (err error) {
@@ -47,6 +48,7 @@ func runInstallWizard() (err error) {
 	if err != nil {
 		return
 	}
+
 	// querySSL(*Config.RedoxServer.SSL)
 	Config.RedoxServer.SSL = nil
 
@@ -66,8 +68,19 @@ func runInstallWizard() (err error) {
 		return
 	}
 	Config.ControlPanel.Password, err = queryString("Password to login into Control Panel", randomPassword)
+
 	// querySSL(*Config.ControlPanel.SSL)
 	Config.ControlPanel.SSL = nil
+
+	timeout, err := queryString("Control panel session timeout", "1h")
+	if err != nil {
+		return
+	}
+	duration, err := time.ParseDuration(timeout)
+	if err != nil {
+		return
+	}
+	Config.ControlPanel.SessionDuration = util.Duration{Duration: duration}
 
 	ip, err := util.GetMyIP()
 	if err != nil {
