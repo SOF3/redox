@@ -1,3 +1,10 @@
+# JetBrains IDE
+.idea/
+
+# Execution
+data/
+plugin_data
+
 # Binaries for programs and plugins
 *.exe
 *.exe~

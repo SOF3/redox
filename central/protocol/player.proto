@@ -1,0 +1,16 @@
+syntax = "proto3";
+package redox.player;
+option go_package = "protocol";
+
+message Player {
+    string name = 1;
+    string ip = 2;
+}
+
+message PlayerLoginEvent {
+    Player player = 4;
+
+    uint64 before = 8;
+    uint64 after = 9;
+    string nodeId = 15;
+}

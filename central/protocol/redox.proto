@@ -1,0 +1,68 @@
+syntax = "proto3";
+package redox;
+option go_package = "protocol";
+
+import "google/protobuf/any.proto";
+
+// Redox protocol is a TCP socket between Central (the central server) and a node (idiomatically a PocketMine server).
+// While a node should normally be a PocketMine server, it is also possible to partition one PocketMine server into multiple nodes, given that all partitions must represent the whole server. For example, it is valid to create one node for each world.
+
+// In the redox protocol, ping is always sent from nodes and pong is always sent from Central.
+message Ping {
+    double node_time = 1; // number of seconds elapsed since the last Ping (or the ClientHandshake) was sent.
+    uint32 ref = 2; // the latest-received Pong.ref + 1, optional (0) if this is the first ping
+}
+message Pong {
+    double central_time = 1; // number of seconds elapsed since the last Pong (or the ServerHandshake) was sent.
+    uint32 ref = 2; // the latest-received Ping.ref
+}
+
+message ClientHandshake {
+    fixed32 version = 1;
+    string node_id = 2;
+    string password = 3;
+    uint64 node_time_i = 4; // the client's local system time, integer part of seconds since Unix epoch
+    double node_time_d = 5; // the client's local system time, fractional part of seconds since Unix epoch
+}
+message ServerHandshake {
+    //    string config = 1; // TODO: improve config structure
+    repeated string deps = 2; // an array of
+    uint64 central_time_i = 4; // Central's local system time,
+    uint64 central_time_d = 5; // Central's local system time,
+}
+
+message ClientDisconnect {
+    string remark = 1;
+}
+message ServerDisconnect {
+    enum DisconnectReason {
+        UNKNOWN = 0;
+        SHUTDOWN = 1;
+        INVALID_LOGIN = 2;
+        DUPLICATE_NODE = 3;
+    }
+
+    bool reconnect = 1;
+    DisconnectReason reason = 2;
+}
+
+// Events
+// An event is first submitted by a node to the Central. For each other node, Central first determines whether the node should receive the event broadcast using the event flags. The event timestamp is then adjusted to match the Ping.node_tick of the receiving node.
+message EventBroadcast {
+    uint64 during_tick = 1; // the last Ping.node_tick sent from the node receiving this broadcast.
+    string node_id = 3; // the ID of the node where the event came from
+    repeated string flag = 4; // optional string set for event flags, used for determining which other nodes to receive the event.
+
+    google.protobuf.Any data = 15; // the actual event data
+}
+
+// Edges
+// An edge is the direct communication between two nodes without passing through Central.
+// Edges should only be used when there is a significant advantage of direct communication over using the Redox protocol.
+// One example is when two nodes are hosted on the same PocketMine server (the same PHP runtime), and sharing memory really makes some things like transferring players significantly easier.
+
+// PrivateEdgeCreation notifies Central that an edge between two servers was created, and Central does not need to pass any information from the other node.
+// To make edge creation foolproof, the PrivateEdgeCreation packet for each pair of nodes must only be sent from exactly one of the nodes.
+message PrivateEdgeCreation {
+    string node = 1;
+}

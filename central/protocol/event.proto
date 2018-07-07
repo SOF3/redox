@@ -1,0 +1,4 @@
+syntax = "proto3";
+package redox;
+option go_package = "protocol";
+
