@@ -51,7 +51,7 @@ When a `MESSAGE` unit is sent, the following is executed in the exact order:
   - a message type frequency table is built from `trace`.
   - `dictionary` is resorted according to the following order:
     - the word's frequency in `trace`, in descending order
-    - the word's original index in `dictionary`, in descending order
+    - the word's original index in `dictionary`, in ascending order
 
 ## redox/protobuf
 The redox/protobuf encodesmessages using the protobuf format and sends them through the redox/dict layer.
