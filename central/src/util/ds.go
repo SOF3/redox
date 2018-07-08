@@ -32,7 +32,7 @@ type ExpiringSyncMap struct {
 func NewExpiringSyncMap(expiry Duration) *ExpiringSyncMap {
 	return &ExpiringSyncMap{
 		duration: expiry,
-		values:   make(map[string]entry),
+		values:   map[string]entry{},
 	}
 }
 

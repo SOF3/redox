@@ -30,7 +30,7 @@ func GetMyIP() (ip string, err error) {
 	}
 
 	dec := json.NewDecoder(resp.Body)
-	var m = make(map[string]interface{})
+	var m = map[string]interface{}{}
 	err = dec.Decode(&m)
 	if err != nil {
 		return

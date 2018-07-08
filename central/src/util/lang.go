@@ -18,10 +18,20 @@
 
 package util
 
+import (
+	"log"
+)
+
 func QString(cond bool, then string, el string) string {
 	if cond {
 		return then
 	} else {
 		return el
+	}
+}
+
+func Assert(cond bool, message string) {
+	if cond {
+		log.Panic(message)
 	}
 }

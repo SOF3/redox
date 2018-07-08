@@ -46,12 +46,14 @@ When a `MESSAGE` unit is sent, the following is executed in the exact order:
 - the message type is pushed to `trace`.
 - `counter` increases by 1.
 - the message type is resolved from the dictionary.
-- if `counter` is equal to the last-received `SET_DICT_SPEC`'s frequency (if it is greater, the program should panick as a bug),
+- if `counter` is equal to the last-received `SET_DICT_SPEC`'s frequency (if it is greater, the program should identify as a bug),
   - `counter` is reset to 0.
   - a message type frequency table is built from `trace`.
   - `dictionary` is resorted according to the following order:
     - the word's frequency in `trace`, in descending order
     - the word's original index in `dictionary`, in ascending order
+
+If a `SET_DICT_SPEC` is sent again, `counter` and `trace` are reset.
 
 ## redox/protobuf
 The redox/protobuf encodesmessages using the protobuf format and sends them through the redox/dict layer.

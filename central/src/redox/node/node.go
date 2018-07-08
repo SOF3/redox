@@ -19,10 +19,10 @@
 package node
 
 import (
-	"net"
-	"github.com/golang/protobuf/proto"
 	"bufio"
 	"encoding/binary"
+	"github.com/golang/protobuf/proto"
+	"net"
 )
 
 type Node struct {
@@ -35,13 +35,11 @@ func New(conn net.Conn) *Node {
 	}
 }
 
-
-
-func (node *Node) Listen(recvChan chan<- proto.Message, recvErrorChan chan<- error)  {
+func (node *Node) Listen(recvChan chan<- proto.Message, recvErrorChan chan<- error) {
 	reader := bufio.NewReader(node.conn)
 
 	for {
-		packetType := reader.ReadByte()
+		unitType, err := reader.ReadByte()
 
 		length, err := binary.ReadUvarint(reader)
 		if err != nil {
@@ -50,7 +48,5 @@ func (node *Node) Listen(recvChan chan<- proto.Message, recvErrorChan chan<- err
 			return
 		}
 
-
 	}
 }
-

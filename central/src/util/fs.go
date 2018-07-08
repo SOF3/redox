@@ -27,23 +27,21 @@ func FileExists(file string) (exists bool, err error) {
 	info, err := os.Stat(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = nil
+			return false, nil
 		}
 		return
 	}
-	exists = !info.IsDir()
-	return
+	return !info.IsDir(), nil
 }
 func DirExists(file string) (exists bool, err error) {
 	info, err := os.Stat(file)
 	if err != nil {
 		if os.IsNotExist(err) {
-			err = nil
+			return false, nil
 		}
 		return
 	}
-	exists = info.IsDir()
-	return
+	return info.IsDir(), nil
 }
 
 func SafeMkdir(dir string, recursive bool) (err error) {
