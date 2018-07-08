@@ -16,41 +16,7 @@
  * limitations under the License.
  */
 
-package node
+package redox_protocol
 
-import (
-	"net"
-	"github.com/golang/protobuf/proto"
-	"bufio"
-	"encoding/binary"
-)
-
-type Node struct {
-	conn net.Conn
+type Packet struct {
 }
-
-func New(conn net.Conn) *Node {
-	return &Node{
-		conn: conn,
-	}
-}
-
-
-
-func (node *Node) Listen(recvChan chan<- proto.Message, recvErrorChan chan<- error)  {
-	reader := bufio.NewReader(node.conn)
-
-	for {
-		packetType := reader.ReadByte()
-
-		length, err := binary.ReadUvarint(reader)
-		if err != nil {
-			recvErrorChan <- err
-			node.conn.Close()
-			return
-		}
-
-
-	}
-}
-
